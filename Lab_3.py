@@ -1,8 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io.wavfile as waves
-from scipy.integrate import quad, simps
-from scipy.fftpack import fft, fftfreq, ifft
+from scipy.fftpack import fft, fftfreq
 import os.path as path
 import sys
 import copy
@@ -61,6 +60,21 @@ class Audiosignal:
             "tiempo (s)",
             'Amplitud'
         )
+    
+    def plot_in_freq_domain(self, title=None):
+        if title is None:
+            title = "Gráfica de la señal {} en el dominio de las frecuencias".format(self.name)
+        plot(
+            self.freq_domain, 
+            np.abs(self.fourier_data),
+            title,
+            'Frecuencia [Hz]',
+            'Amplitud [db]'
+        )
+    
+    def fourier_transform(self):
+        self.fourier_data = fft(self.data)
+        self.freq_domain = fftfreq(self.samples, d=self.step)
 
     def demodulation_AM(self, newsignal = False):
         k = 1
@@ -91,6 +105,11 @@ if __name__ == "__main__":
     mod_AM_signal.plot_in_time_domain(title= "modulación AM")
     mod_FM_signal.plot_in_time_domain(title= "modulación FM")
 
+    # fourier transform
+    mod_AM_signal.fourier_transform()
+    mod_FM_signal.fourier_transform()
+    mod_AM_signal.plot_in_freq_domain(title = "espectro de frecuencia modulación AM")
+    mod_FM_signal.plot_in_freq_domain(title = "espectro de frecuencia modulación FM")
 
     # AM signal demodulation
     demod_AM_signal = mod_AM_signal.demodulation_AM(newsignal=True)
