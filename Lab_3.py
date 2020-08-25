@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io.wavfile as waves
 from scipy.fftpack import fft, fftfreq
+from scipy.interpolate import interp1d
+from scipy.integrate import cumtrapz
 import os.path as path
 import sys
 import copy
@@ -16,39 +18,26 @@ def plot(x, y, title, xlabel, ylabel):
 
 class Audiosignal:
     
-    def __init__(self, path):
-        self.name = path
-        self.sample_rate, self.data = waves.read(path)
-        # Number of channels
-        if len(np.shape(self.data)) == 1:
-            self.number_of_channels = 1
-        else:
-            self.number_of_channels = np.shape(self.data)[1]
-        self.samples = np.shape(self.data)[0]
-        self.seconds = float(self.samples / self.sample_rate)
-        self.step = float(1 / self.sample_rate)
-        self.time_range = np.arange(0, self.seconds, self.step)
+    def __init__(self):
+        self.name = ""
+        self.sample_rate = ""
+        self.data = []
+        self.samples = 0
+        self.seconds = 0
+        self.step = 0
+        self.time_range = []
 
-    def modulation_AM(self, newsignal = False):
-        k = 1
-        f = 100
-        new_signal = self
-        if newsignal:
-            new_signal = copy.deepcopy(self)
-        new_signal.name = "modulacion AM de {}".format(self.name)
-        new_signal.data = k*self.data*np.cos(2*np.pi*f*self.time_range)
-        return new_signal
+    def interpolate(self, samples, seconds=None):
+        if samples == self.samples: return
+        if seconds is not None: self.seconds = seconds
+        i_data_function = interp1d(self.time_range, self.data)
+        new_time_range = np.linspace(0, self.seconds, samples)
+        self.data = i_data_function(new_time_range)
+        self.time_range = new_time_range
+        self.samples = samples
+        self.sample_rate = self.samples/self.seconds
+        self.step = self.time_range[1] - self.time_range[0]
 
-    def modulation_FM(self, newsignal = False):
-        k = 1
-        f = 100
-        new_signal = self
-        if newsignal:
-            new_signal = copy.deepcopy(self)
-        #I = simps(self.data, self.time_range)
-        new_signal.name = "modulacion FM de {}".format(self.name)
-        new_signal.data = np.cos(2*np.pi*f*self.time_range + k*self.data*self.time_range)
-        return new_signal
 
     def plot_in_time_domain(self, title=None):
         if title is None: 
@@ -93,28 +82,109 @@ class Audiosignal:
         data = np.asarray(np.real(self.data), dtype=np.int16)
         waves.write(name, self.sample_rate, data)
 
+def load_audio_from_disk(path):
+        signal = Audiosignal()
+        signal.name = path
+        signal.sample_rate, signal.data = waves.read(path)
+        # Number of channels
+        if len(np.shape(signal.data)) == 1:
+            signal.number_of_channels = 1
+        else:
+            signal.number_of_channels = np.shape(signal.data)[1]
+        signal.samples = np.shape(signal.data)[0]
+        signal.seconds = float(signal.samples / signal.sample_rate)
+        signal.step = float(1 / signal.sample_rate)
+        signal.time_range = np.linspace(0, signal.seconds, signal.samples)
+        #self.time_range = np.arange(0, self.seconds, self.step)
+        return signal
+
+# Modulates a signal in AM
+# signal : Audiosignal to modulate
+# k : amplitude factor
+# f : carrier's frequency in hertz
+# returns an Audiosignal
+def am_modulation(signal, k=1, f=10000, fs_factor=2.5):
+    sample_rate = int(fs_factor*f)
+    if sample_rate < 2*f:
+        print("La frecuencia de muestreo debe ser mayor al doble de f ({})".format(f))
+        return None
+
+    step = float(1/sample_rate)
+    t = np.arange(0, signal.seconds, step)
+    carrier_data = k*np.cos(2*np.pi*f*t)
+    carrier_samples = len(t)
+    signal.interpolate(carrier_samples)
+    s = copy.deepcopy(signal)
+    s.name = "{} modulada en AM".format(signal.name)
+    s.data = carrier_data*signal.data
+    return s
+
+# Modulates a signal in FM
+# signal : Audiosignal to modulate
+# k : frequency variation factor
+# f : carrier's frequency in hertz
+# returns an Audiosignal
+def fm_modulation(signal, k=1, f=10000, fs_factor=2.5):
+    sample_rate = int(fs_factor*f)
+    if sample_rate < 2*f:
+        print("La frecuencia de muestreo debe ser mayor al doble de f ({})".format(f))
+        return None
+    step = float(1/sample_rate)
+    t = np.arange(0, signal.seconds, step)
+    samples = len(t)
+    signal.interpolate(samples)
+    s = copy.deepcopy(signal)
+    s.name = "{} modulada en FM".format(signal.name)
+    mdt = cumtrapz(s.data, s.time_range, initial=0)
+    s.data = np.cos(2*np.pi*f*t + k*mdt)
+    return s
+
+
 if __name__ == "__main__":
-    
-    path = sys.argv[1]
-    original_signal = Audiosignal(path)
+    original_signal = load_audio_from_disk("handel.wav")
     original_signal.plot_in_time_domain()
 
-    # signal modulation
-    mod_AM_signal = original_signal.modulation_AM(newsignal=True)
-    mod_FM_signal = original_signal.modulation_FM(newsignal=True)
-    mod_AM_signal.plot_in_time_domain(title= "modulación AM")
-    mod_FM_signal.plot_in_time_domain(title= "modulación FM")
+    am = am_modulation(original_signal, k=1, f=10000)
+    am.plot_in_time_domain()
+    am.fourier_transform()
+    am.plot_in_freq_domain()
 
-    # fourier transform
-    mod_AM_signal.fourier_transform()
-    mod_FM_signal.fourier_transform()
-    mod_AM_signal.plot_in_freq_domain(title = "espectro de frecuencia modulación AM")
-    mod_FM_signal.plot_in_freq_domain(title = "espectro de frecuencia modulación FM")
 
-    # AM signal demodulation
-    demod_AM_signal = mod_AM_signal.demodulation_AM(newsignal=True)
-    demod_AM_signal.plot_in_time_domain(title = "desmodulacion de señal AM")
-    mod_AM_signal.write(name=  "AM.wav")
+    fm = fm_modulation(original_signal, k=1, f=10000)
+    fm.plot_in_time_domain()
+    fm.fourier_transform()
+    fm.plot_in_freq_domain()
+
+    demod_AM_signal = am.demodulation_AM(newsignal=True)
+    demod_AM_signal.plot_in_time_domain(title = "demodulacion de señal AM")
     demod_AM_signal.write(name = "señal demodulada.wav")
     
     plt.show()
+
+# if __name__ == "__main__":
+    
+#     path = sys.argv[1]
+#     original_signal = Audiosignal(path)
+#     original_signal.plot_in_time_domain()
+#     original_signal.fourier_transform()
+#     original_signal.plot_in_freq_domain(title = "Espectro original")
+
+#     # signal modulation
+#     mod_AM_signal = original_signal.modulation_AM(newsignal=True)
+#     mod_FM_signal = original_signal.modulation_FM(newsignal=True)
+#     mod_AM_signal.plot_in_time_domain(title= "modulación AM")
+#     mod_FM_signal.plot_in_time_domain(title= "modulación FM")
+
+#     # fourier transform
+#     mod_AM_signal.fourier_transform()
+#     mod_FM_signal.fourier_transform()
+#     mod_AM_signal.plot_in_freq_domain(title = "espectro de frecuencia modulación AM")
+#     mod_FM_signal.plot_in_freq_domain(title = "espectro de frecuencia modulación FM")
+
+#     # AM signal demodulation
+#     demod_AM_signal = mod_AM_signal.demodulation_AM(newsignal=True)
+#     demod_AM_signal.plot_in_time_domain(title = "desmodulacion de señal AM")
+#     mod_AM_signal.write(name=  "AM.wav")
+#     demod_AM_signal.write(name = "señal demodulada.wav")
+    
+#     plt.show()
