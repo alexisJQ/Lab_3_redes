@@ -80,7 +80,7 @@ class Audiosignal:
         if name is None:
             name = "{}.wav".format(self.name.replace(" ", "_").replace(".wav", ""))
         data = np.asarray(np.real(self.data), dtype=np.int16)
-        waves.write(name, self.sample_rate, data)
+        waves.write(name, int(self.sample_rate), data)
 
 def load_audio_from_disk(path):
         signal = Audiosignal()
