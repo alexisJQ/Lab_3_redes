@@ -157,34 +157,5 @@ if __name__ == "__main__":
 
     demod_AM_signal = am.demodulation_AM(newsignal=True)
     demod_AM_signal.plot_in_time_domain(title = "demodulacion de señal AM")
-    demod_AM_signal.write(name = "señal demodulada.wav")
     
     plt.show()
-
-# if __name__ == "__main__":
-    
-#     path = sys.argv[1]
-#     original_signal = Audiosignal(path)
-#     original_signal.plot_in_time_domain()
-#     original_signal.fourier_transform()
-#     original_signal.plot_in_freq_domain(title = "Espectro original")
-
-#     # signal modulation
-#     mod_AM_signal = original_signal.modulation_AM(newsignal=True)
-#     mod_FM_signal = original_signal.modulation_FM(newsignal=True)
-#     mod_AM_signal.plot_in_time_domain(title= "modulación AM")
-#     mod_FM_signal.plot_in_time_domain(title= "modulación FM")
-
-#     # fourier transform
-#     mod_AM_signal.fourier_transform()
-#     mod_FM_signal.fourier_transform()
-#     mod_AM_signal.plot_in_freq_domain(title = "espectro de frecuencia modulación AM")
-#     mod_FM_signal.plot_in_freq_domain(title = "espectro de frecuencia modulación FM")
-
-#     # AM signal demodulation
-#     demod_AM_signal = mod_AM_signal.demodulation_AM(newsignal=True)
-#     demod_AM_signal.plot_in_time_domain(title = "desmodulacion de señal AM")
-#     mod_AM_signal.write(name=  "AM.wav")
-#     demod_AM_signal.write(name = "señal demodulada.wav")
-    
-#     plt.show()
